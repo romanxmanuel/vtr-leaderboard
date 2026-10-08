@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VTR Live Leaderboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050a14;
+    color: #e8eef7;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  .bg-glow {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(37,99,235,0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 90%, rgba(37,99,235,0.10), transparent),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(29,78,216,0.06), transparent);
+  }
+  .container {
+    position: relative; z-index: 1;
+    height: 100vh; width: 100vw;
+    display: flex; flex-direction: column;
+    padding: 1.5vh 2vw;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 1vh; border-bottom: 1px solid rgba(59,130,246,0.25);
+  }
+  .logo-title { display: flex; align-items: center; gap: 1.5vw; }
+  .logo {
+    width: 7vh; height: 7vh; object-fit: contain;
+    filter: drop-shadow(0 0 12px rgba(59,130,246,0.9)) drop-shadow(0 0 30px rgba(59,130,246,0.5));
+  }
+  h1 {
+    font-size: 4.5vh; font-weight: 800; letter-spacing: 0.15em;
+    background: linear-gradient(135deg, #dbeafe, #93c5fd, #dbeafe);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(59,130,246,0.4);
+  }
+  .live-badge {
+    display: flex; align-items: center; gap: 0.6vw;
+    font-size: 2.2vh; font-weight: 700; letter-spacing: 0.2em;
+    color: #ef4444;
+  }
+  .live-dot {
+    width: 1.6vh; height: 1.6vh; border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 12px #ef4444, 0 0 30px #ef4444;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: 0.5; transform: scale(0.8);} }
+  .period-tabs { display: flex; gap: 0.8vw; }
+  .period-btn {
+    padding: 1vh 1.8vw; font-size: 2vh; font-weight: 700; letter-spacing: 0.08em;
+    background: rgba(30,58,138,0.25); color: #93c5fd;
+    border: 1px solid rgba(59,130,246,0.4); border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .period-btn.active {
+    background: rgba(37,99,235,0.5); color: #fff;
+    box-shadow: 0 0 20px rgba(59,130,246,0.6);
+    border-color: #60a5fa;
+  }
+  .main { flex: 1; display: flex; gap: 2vw; padding-top: 1.5vh; min-height: 0; }
+  .leaderboard { flex: 1.4; display: flex; flex-direction: column; min-height: 0; }
+  .section-title {
+    font-size: 2.6vh; font-weight: 700; letter-spacing: 0.12em;
+    color: #93c5fd; margin-bottom: 1vh;
+    text-shadow: 0 0 20px rgba(59,130,246,0.5);
+  }
+  .agent-list { flex: 1; display: flex; flex-direction: column; gap: 0.8vh; overflow: hidden; }
+  .agent-row {
+    display: flex; align-items: center; gap: 1.2vw;
+    background: rgba(15,23,42,0.7);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 10px; padding: 0.9vh 1.2vw;
+    transition: transform 0.2s;
+  }
+  .agent-row.top1 { border-color: #fbbf24; box-shadow: 0 0 25px rgba(251,191,36,0.25); }
+  .agent-row.top2 { border-color: #94a3b8; box-shadow: 0 0 20px rgba(148,163,184,0.2); }
+  .agent-row.top3 { border-color: #b45309; box-shadow: 0 0 20px rgba(180,83,9,0.2); }
+  .rank {
+    font-size: 3.2vh; font-weight: 800; min-width: 3.5vw; text-align: center;
+    color: #64748b;
+  }
+  .agent-row.top1 .rank { color: #fbbf24; text-shadow: 0 0 15px rgba(251,191,36,0.8); }
+  .agent-row.top2 .rank { color: #cbd5e1; text-shadow: 0 0 15px rgba(203,213,225,0.8); }
+  .agent-row.top3 .rank { color: #d97706; text-shadow: 0 0 15px rgba(217,119,6,0.8); }
+  .avatar {
+    width: 5.5vh; height: 5.5vh; border-radius: 50%; object-fit: cover;
+    border: 2px solid rgba(59,130,246,0.6);
+    box-shadow: 0 0 15px rgba(59,130,246,0.4);
+    background: #1e3a5f;
+  }
+  .avatar-initials {
+    width: 5.5vh; height: 5.5vh; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2vh; font-weight: 700; color: #bfdbfe;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    border: 2px solid rgba(59,130,246,0.6);
+    box-shadow: 0 0 15px rgba(59,130,246,0.4);
+  }
+  .agent-info { flex: 1; }
+  .agent-name { font-size: 2.4vh; font-weight: 700; }
+  .agent-policies { font-size: 1.7vh; color: #64748b; }
+  .agent-ap {
+    font-size: 3vh; font-weight: 800; color: #dbeafe;
+    text-shadow: 0 0 20px rgba(59,130,246,0.6);
+  }
+  .side-panel { flex: 1; display: flex; flex-direction: column; gap: 1.5vh; min-height: 0; }
+  .stat-card {
+    background: rgba(15,23,42,0.7);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 12px; padding: 1.5vh 1.5vw;
+    text-align: center;
+  }
+  .stat-label { font-size: 1.8vh; color: #64748b; letter-spacing: 0.1em; margin-bottom: 0.5vh; }
+  .stat-value {
+    font-size: 4.5vh; font-weight: 800; color: #dbeafe;
+    text-shadow: 0 0 25px rgba(59,130,246,0.7);
+  }
+  .recent-sales { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .sales-list { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 0.7vh; }
+  .sale-row {
+    display: flex; align-items: center; gap: 1vw;
+    background: rgba(15,23,42,0.6);
+    border-left: 3px solid #3b82f6;
+    border-radius: 0 8px 8px 0; padding: 0.8vh 1vw;
+    font-size: 1.9vh;
+    animation: slideIn 0.5s ease-out;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(30px);} to { opacity: 1; transform: translateX(0);} }
+  .sale-agent { font-weight: 700; color: #bfdbfe; }
+  .sale-detail { color: #64748b; }
+  .sale-ap { font-weight: 800; color: #86efac; margin-left: auto; }
+  .ticker-wrap {
+    margin-top: 1.5vh; padding: 1.2vh 0;
+    border-top: 1px solid rgba(59,130,246,0.25);
+    overflow: hidden; white-space: nowrap;
+  }
+  .ticker {
+    display: inline-block; font-size: 2.2vh; color: #93c5fd;
+    animation: ticker 40s linear infinite;
+  }
+  @keyframes ticker { from { transform: translateX(100vw);} to { transform: translateX(-100%);} }
+  .celebration {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(3,7,18,0.92);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .celebration.show { opacity: 1; pointer-events: all; }
+  .celeb-photo {
+    width: 22vh; height: 22vh; border-radius: 50%; object-fit: cover;
+    border: 4px solid #3b82f6;
+    box-shadow: 0 0 40px rgba(59,130,246,1), 0 0 100px rgba(59,130,246,0.5);
+    animation: celebPop 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes celebPop { 0% { transform: scale(0);} 70% { transform: scale(1.15);} 100% { transform: scale(1);} }
+  .celeb-title {
+    font-size: 7vh; font-weight: 900; letter-spacing: 0.1em; margin-top: 2vh;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #fbbf24);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 30px rgba(251,191,36,0.8));
+    animation: hitStop 0.5s steps(2) 0.3s;
+  }
+  @keyframes hitStop { 0%,100% { transform: scale(1);} 50% { transform: scale(1.08);} }
+  .celeb-name { font-size: 5vh; font-weight: 800; color: #dbeafe; margin-top: 1vh; text-shadow: 0 0 30px rgba(59,130,246,0.8); }
+  .celeb-ap { font-size: 6vh; font-weight: 900; color: #86efac; margin-top: 0.5vh; text-shadow: 0 0 40px rgba(134,239,172,0.8); }
+  .celeb-detail { font-size: 2.5vh; color: #93c5fd; margin-top: 1vh; }
+  .lightning {
+    position: absolute; width: 100%; height: 100%; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(59,130,246,0.15) 70%, transparent);
+    animation: flash 0.4s ease-out 2;
+  }
+  @keyframes flash { 0%,100% { opacity: 0;} 50% { opacity: 1;} }
+  .confetti { position: absolute; width: 10px; height: 10px; top: -10px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  .loading { text-align: center; padding: 10vh; font-size: 3vh; color: #64748b; }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="container">
+  <header>
+    <div class="logo-title">
+      <img class="logo" id="vtrLogo" alt="VTR">
+      <h1>VTR LIVE LEADERBOARD</h1>
+    </div>
+    <div class="period-tabs">
+      <button class="period-btn active" data-period="today">TODAY</button>
+      <button class="period-btn" data-period="week">THIS WEEK</button>
+      <button class="period-btn" data-period="month">THIS MONTH</button>
+      <button class="period-btn" data-period="ytd">YTD</button>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+  </header>
+  <div class="main">
+    <div class="leaderboard">
+      <div class="section-title">TOP AGENTS</div>
+      <div class="agent-list" id="agentList"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="side-panel">
+      <div class="stat-card">
+        <div class="stat-label">TEAM AP</div>
+        <div class="stat-value" id="teamAP">$0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">TOTAL POLICIES</div>
+        <div class="stat-value" id="totalPolicies">0</div>
+      </div>
+      <div class="recent-sales">
+        <div class="section-title">RECENT SALES</div>
+        <div class="sales-list" id="salesList"></div>
+      </div>
+    </div>
+  </div>
+  <div class="ticker-wrap"><div class="ticker" id="ticker"></div></div>
+</div>
+<div class="celebration" id="celebration">
+  <div class="lightning"></div>
+  <div id="confettiContainer"></div>
+  <img class="celeb-photo" id="celebPhoto" style="display:none">
+  <div class="celeb-title">NEW SALE</div>
+  <div class="celeb-name" id="celebName"></div>
+  <div class="celeb-ap" id="celebAP"></div>
+  <div class="celeb-detail" id="celebDetail"></div>
+</div>
+<script>
+const SHEET_ID = '1LNr-ZUHVT2ryzJL7GR0s0dUZt6y7b-DC-dpjS7tivOo';
+const SALES_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sales%20Feed`;
+const AGENTS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Agents`;
+let salesData = [], agentsMap = {}, currentPeriod = 'today', seenCount = 0;
+let celebrationQueue = [], celebrating = false;
+
+document.getElementById('vtrLogo').src = 'vtr-logo.png';
+document.getElementById('vtrLogo').onerror = function() { this.style.display = 'none'; };
+
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    render();
+  });
+});
+
+function parseGviz(text) {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  return JSON.parse(text.substring(start, end + 1));
+}
+function cellVal(c) {
+  if (!c) return '';
+  if (c.v instanceof Date) return c.v;
+  if (typeof c.v === 'string' && c.v.startsWith('Date(')) {
+    const m = c.v.match(/Date\((\d+),(\d+),(\d+)/);
+    if (m) return new Date(+m[1], +m[2], +m[3]);
+  }
+  return c.v !== undefined && c.v !== null ? c.v : (c.f || '');
+}
+function parseDate(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'string') {
+    const m = v.match(/Date\((\d+),(\d+),(\d+)/);
+    if (m) return new Date(+m[1], +m[2], +m[3]);
+    const d = new Date(v);
+    if (!isNaN(d)) return d;
+  }
+  return null;
+}
+function renameCarrier(c) {
+  if (!c) return c;
+  const s = String(c).toLowerCase();
+  if (s.includes('fidelity')) return 'InstaBrain';
+  return c;
+}
+function inPeriod(saleDate, period) {
+  if (!saleDate) return period === 'ytd';
+  const now = new Date();
+  const d = new Date(saleDate);
+  d.setHours(0,0,0,0);
+  const t = new Date(now); t.setHours(0,0,0,0);
+  if (period === 'today') return d.getTime() === t.getTime();
+  if (period === 'week') return (t - d) <= 7 * 864e5 && d <= t;
+  if (period === 'month') return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth();
+  if (period === 'ytd') return d.getFullYear() === t.getFullYear();
+  return false;
+}
+
+async function fetchData() {
+  try {
+    const [sRes, aRes] = await Promise.all([fetch(SALES_URL), fetch(AGENTS_URL)]);
+    const sText = await sRes.text(), aText = await aRes.text();
+    const sJson = parseGviz(sText), aJson = parseGviz(aText);
+    const sCols = sJson.table.cols.map(c => (c.label || '').toLowerCase());
+    const idx = n => sCols.findIndex(c => c.includes(n));
+    const iAgent = idx('agent name'), iAP = idx('premium (ap)'), iSaleDate = idx('sale date'),
+          iCarrier = idx('carrier'), iPType = idx('policy type'), iStatus = idx('status'),
+          iTimestamp = idx('timestamp');
+    salesData = sJson.table.rows.map(r => {
+      const c = r.c;
+      return {
+        agent: String(cellVal(c[iAgent]) || ''),
+        ap: parseFloat(cellVal(c[iAP])) || 0,
+        saleDate: parseDate(cellVal(c[iSaleDate])),
+        carrier: renameCarrier(cellVal(c[iCarrier])),
+        policyType: cellVal(c[iPType]),
+        status: cellVal(c[iStatus]),
+        timestamp: parseDate(cellVal(c[iTimestamp]))
+      };
+    }).filter(s => s.agent);
+
+    const aCols = aJson.table.cols.map(c => (c.label || '').toLowerCase());
+    const aiName = aCols.findIndex(c => c.includes('agent name'));
+    const aiPhoto = aCols.findIndex(c => c.includes('photo'));
+    agentsMap = {};
+    aJson.table.rows.forEach(r => {
+      const name = String(cellVal(r.c[aiName]) || '').trim();
+      const photo = String(cellVal(r.c[aiPhoto]) || '').trim();
+      if (name) agentsMap[name.toLowerCase()] = { name, photo };
+    });
+
+    if (seenCount > 0 && salesData.length > seenCount) {
+      const newSales = salesData.slice(0, salesData.length - seenCount);
+      newSales.forEach(s => celebrationQueue.push(s));
+      processCelebrationQueue();
+    }
+    seenCount = salesData.length;
+    render();
+  } catch (e) { console.error('Fetch error:', e); }
+}
+
+function processCelebrationQueue() {
+  if (celebrating || !celebrationQueue.length) return;
+  celebrating = true;
+  const s = celebrationQueue.shift();
+  showCelebration(s);
+  setTimeout(() => {
+    document.getElementById('celebration').classList.remove('show');
+    celebrating = false;
+    setTimeout(processCelebrationQueue, 500);
+  }, 8000);
+}
+
+function showCelebration(s) {
+  const agent = agentsMap[s.agent.toLowerCase()];
+  const photo = document.getElementById('celebPhoto');
+  if (agent && agent.photo) { photo.src = agent.photo; photo.style.display = 'block'; }
+  else photo.style.display = 'none';
+  document.getElementById('celebName').textContent = s.agent;
+  document.getElementById('celebAP').textContent = '$' + s.ap.toLocaleString(undefined, {maximumFractionDigits: 0});
+  let detail = s.carrier || '';
+  if (s.policyType) detail += ' - ' + s.policyType;
+  document.getElementById('celebDetail').textContent = detail;
+  const cc = document.getElementById('confettiContainer');
+  cc.innerHTML = '';
+  const colors = ['#3b82f6','#60a5fa','#fbbf24','#86efac','#f472b6','#fff'];
+  for (let i = 0; i < 80; i++) {
+    const d = document.createElement('div');
+    d.className = 'confetti';
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.background = colors[Math.floor(Math.random() * colors.length)];
+    d.style.animationDuration = (2 + Math.random() * 3) + 's';
+    d.style.animationDelay = (Math.random() * 0.5) + 's';
+    cc.appendChild(d);
+  }
+  document.getElementById('celebration').classList.add('show');
+}
+document.getElementById('celebration').addEventListener('click', () => {
+  document.getElementById('celebration').classList.remove('show');
+  celebrating = false;
+  processCelebrationQueue();
+});
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+}
+
+function render() {
+  const filtered = salesData.filter(s => inPeriod(s.saleDate, currentPeriod));
+  const byAgent = {};
+  filtered.forEach(s => {
+    if (!byAgent[s.agent]) byAgent[s.agent] = { name: s.agent, ap: 0, count: 0 };
+    byAgent[s.agent].ap += s.ap;
+    byAgent[s.agent].count++;
+  });
+  const sorted = Object.values(byAgent).sort((a, b) => b.ap - a.ap).slice(0, 10);
+
+  const list = document.getElementById('agentList');
+  if (!sorted.length) { list.innerHTML = '<div class="loading">No sales this period</div>'; }
+  else list.innerHTML = sorted.map((a, i) => {
+    const agent = agentsMap[a.name.toLowerCase()];
+    const photo = agent && agent.photo;
+    const top = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    return `<div class="agent-row ${top}">
+      <div class="rank">${i + 1}</div>
+      ${photo ? `<img class="avatar" src="${photo}" onerror="this.outerHTML='<div class=avatar-initials>${initials(a.name)}</div>'">` : `<div class="avatar-initials">${initials(a.name)}</div>`}
+      <div class="agent-info"><div class="agent-name">${a.name}</div><div class="agent-policies">${a.count} ${a.count === 1 ? 'policy' : 'policies'}</div></div>
+      <div class="agent-ap">$${a.ap.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+    </div>`;
+  }).join('');
+
+  const teamAP = filtered.reduce((s, x) => s + x.ap, 0);
+  document.getElementById('teamAP').textContent = '$' + teamAP.toLocaleString(undefined, {maximumFractionDigits: 0});
+  document.getElementById('totalPolicies').textContent = filtered.length;
+
+  const recent = [...salesData].sort((a, b) => (b.saleDate || 0) - (a.saleDate || 0)).slice(0, 8);
+  document.getElementById('salesList').innerHTML = recent.map(s => {
+    let detail = s.carrier || '';
+    if (s.policyType) detail += ' | ' + s.policyType;
+    return `<div class="sale-row"><span class="sale-agent">${s.agent}</span><span class="sale-detail">${detail}</span><span class="sale-ap">$${s.ap.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>`;
+  }).join('');
+
+  const tickItems = [...salesData].sort((a, b) => (b.saleDate || 0) - (a.saleDate || 0)).slice(0, 20);
+  document.getElementById('ticker').textContent = tickItems.map(s => {
+    let t = `${s.agent} $${s.ap.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+    if (s.policyType) t += ` - ${s.policyType}`;
+    if (s.carrier) t += ` - ${s.carrier}`;
+    return t;
+  }).join('   ***   ');
+}
+
+fetchData();
+setInterval(fetchData, 30000);
+</script>
+</body>
+</html>
